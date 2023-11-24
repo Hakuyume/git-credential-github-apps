@@ -1,0 +1,79 @@
+name: build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  cargo-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo fmt -- --check
+  cargo-clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      # https://github.com/actions/cache/blob/master/examples.md#rust---cargo
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo clippy -- --deny warnings
+  cargo-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      # https://github.com/actions/cache/blob/master/examples.md#rust---cargo
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: |
+          sudo apt-get install --no-install-recommends --yes musl-tools
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --release --target x86_64-unknown-linux-musl
+      - uses: actions/upload-artifact@v3
+        with:
+          name: x86-64-linux
+          path: target/x86_64-unknown-linux-musl/release/git-credential-github-apps
+  docker-build:
+    needs:
+      - cargo-build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: x86-64-linux
+      - run: |
+          chmod +x git-credential-github-apps
+
+          cat << 'EOD' > Dockerfile
+          FROM alpine
+          RUN apk add --no-cache ca-certificates git git-lfs
+          COPY git-credential-github-apps /usr/local/bin/
+          EOD
+      - uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}
