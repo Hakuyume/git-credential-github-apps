@@ -76,4 +76,5 @@ jobs:
         with:
           context: .
           push: ${{ github.ref == 'refs/heads/main' }}
+          # https://github.com/orgs/community/discussions/25768
           tags: ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}
