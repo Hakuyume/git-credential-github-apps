@@ -14,7 +14,7 @@ struct Opts {
     #[clap(long)]
     app_id: u64,
     #[clap(long)]
-    key: PathBuf,
+    private_key: PathBuf,
     #[clap(arg_enum)]
     operation: Operation,
 }
@@ -39,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     let octocrab = Octocrab::builder()
         .app(
             opts.app_id.into(),
-            EncodingKey::from_rsa_pem(&fs::read(opts.key).await?)?,
+            EncodingKey::from_rsa_pem(&fs::read(opts.private_key).await?)?,
         )
         .build()?;
 
