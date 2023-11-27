@@ -52,6 +52,7 @@ async fn main() -> anyhow::Result<()> {
 
     if let Operation::Get = opts.operation {
         let mut inputs = HashMap::new();
+        // https://git-scm.com/docs/git-credential#IOFMT
         let mut stdin = BufReader::new(io::stdin()).lines();
         while let Some(line) = stdin.next_line().await? {
             tracing::debug!(line);
