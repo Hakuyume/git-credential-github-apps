@@ -44,33 +44,21 @@ async fn main() -> anyhow::Result<()> {
         .build()?;
 
     if let Operation::Get = opts.operation {
-        let mut inputs = HashMap::<_, Vec<_>>::new();
+        let mut inputs = HashMap::new();
         let mut stdin = BufReader::new(io::stdin()).lines();
         while let Some(line) = stdin.next_line().await? {
             tracing::debug!(line);
             if let Some((key, value)) = line.split_once('=') {
-                if let Some(key) = key.strip_suffix("[]") {
-                    if value.is_empty() {
-                        inputs.remove(key);
-                    } else {
-                        inputs
-                            .entry(key.to_owned())
-                            .or_default()
-                            .push(value.to_owned());
-                    }
-                } else {
-                    inputs.insert(key.to_owned(), vec![value.to_owned()]);
-                }
+                inputs.insert(key.to_owned(), value.to_owned());
             }
         }
         tracing::info!(?inputs);
 
-        let Some([path]) = inputs.get("path").map(Vec::as_slice) else {
-            anyhow::bail!("missing path")
-        };
-        let Some((owner, repo)) = path.split_once('/') else {
-            anyhow::bail!("invalid path")
-        };
+        let (owner, repo) = inputs
+            .get("path")
+            .ok_or_else(|| anyhow::format_err!("missing path"))?
+            .split_once('/')
+            .ok_or_else(|| anyhow::format_err!("invalid path"))?;
         let repo = repo.trim_end_matches(".git");
         tracing::info!(owner, repo);
 
