@@ -39,16 +39,16 @@ async fn main() -> anyhow::Result<()> {
     let opts = Opts::parse();
     tracing::info!(?opts);
 
-    let mut builder = Octocrab::builder();
-    if let Some(endpoint) = &opts.endpoint {
-        builder = builder.base_uri(endpoint)?;
+    let octocrab = if let Some(endpoint) = &opts.endpoint {
+        Octocrab::builder().base_uri(endpoint)?
+    } else {
+        Octocrab::builder()
     }
-    let octocrab = builder
-        .app(
-            opts.app_id.into(),
-            EncodingKey::from_rsa_pem(&fs::read(&opts.private_key).await?)?,
-        )
-        .build()?;
+    .app(
+        opts.app_id.into(),
+        EncodingKey::from_rsa_pem(&fs::read(&opts.private_key).await?)?,
+    )
+    .build()?;
 
     if let Operation::Get = opts.operation {
         let mut inputs = HashMap::new();
