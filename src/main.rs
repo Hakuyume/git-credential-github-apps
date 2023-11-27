@@ -12,6 +12,8 @@ use tracing_subscriber::util::SubscriberInitExt;
 #[derive(Debug, Parser)]
 struct Opts {
     #[clap(long)]
+    endpoint: Option<String>,
+    #[clap(long)]
     app_id: u64,
     #[clap(long)]
     private_key: PathBuf,
@@ -36,10 +38,14 @@ async fn main() -> anyhow::Result<()> {
     let opts = Opts::parse();
     tracing::info!(?opts);
 
-    let octocrab = Octocrab::builder()
+    let mut builder = Octocrab::builder();
+    if let Some(endpoint) = &opts.endpoint {
+        builder = builder.base_uri(endpoint)?;
+    }
+    let octocrab = builder
         .app(
             opts.app_id.into(),
-            EncodingKey::from_rsa_pem(&fs::read(opts.private_key).await?)?,
+            EncodingKey::from_rsa_pem(&fs::read(&opts.private_key).await?)?,
         )
         .build()?;
 
