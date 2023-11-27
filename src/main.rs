@@ -1,4 +1,5 @@
 use clap::{ArgEnum, Parser};
+use http::Uri;
 use jsonwebtoken::EncodingKey;
 use octocrab::Octocrab;
 use secrecy::ExposeSecret;
@@ -12,7 +13,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 #[derive(Debug, Parser)]
 struct Opts {
     #[clap(long)]
-    endpoint: Option<String>,
+    endpoint: Option<Uri>,
     #[clap(long)]
     app_id: u64,
     #[clap(long)]
