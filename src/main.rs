@@ -25,18 +25,18 @@ struct Opts {
 #[derive(Debug, Args)]
 #[group(required = true, multiple = false)]
 struct AppId {
-    #[arg(id = "app-id-from-literal", long)]
+    #[arg(id = "app-id-from-literal", long, value_name = "APP ID")]
     literal: Option<u64>,
-    #[arg(id = "app-id-from-file", long)]
+    #[arg(id = "app-id-from-file", long, value_name = "APP ID FILE")]
     file: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 #[group(required = true, multiple = false)]
 struct PrivateKey {
-    #[arg(id = "private-key-from-literal", long)]
+    #[arg(id = "private-key-from-literal", long, value_name = "PRIVATE KEY")]
     literal: Option<String>,
-    #[arg(id = "private-key-from-file", long)]
+    #[arg(id = "private-key-from-file", long, value_name = "PRIVATE KEY FILE")]
     file: Option<PathBuf>,
 }
 
