@@ -1,4 +1,4 @@
-use clap::{ArgEnum, Parser};
+use clap::{Args, Parser, ValueEnum};
 use http::Uri;
 use jsonwebtoken::EncodingKey;
 use octocrab::Octocrab;
@@ -14,16 +14,34 @@ use tracing_subscriber::util::SubscriberInitExt;
 struct Opts {
     #[clap(long)]
     endpoint: Option<Uri>,
-    #[clap(long)]
-    app_id: u64,
-    #[clap(long)]
-    private_key: PathBuf,
-    #[clap(arg_enum)]
+    #[command(flatten)]
+    app_id: AppId,
+    #[command(flatten)]
+    private_key: PrivateKey,
+    #[clap(value_enum)]
     operation: Operation,
 }
 
+#[derive(Debug, Args)]
+#[group(required = true, multiple = false)]
+struct AppId {
+    #[arg(id = "app-id-from-literal", long)]
+    literal: Option<u64>,
+    #[arg(id = "app-id-from-file", long)]
+    file: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+#[group(required = true, multiple = false)]
+struct PrivateKey {
+    #[arg(id = "private-key-from-literal", long)]
+    literal: Option<String>,
+    #[arg(id = "private-key-from-file", long)]
+    file: Option<PathBuf>,
+}
+
 // https://git-scm.com/docs/gitcredentials#_custom_helpers
-#[derive(Clone, Debug, ArgEnum)]
+#[derive(Clone, Debug, ValueEnum)]
 enum Operation {
     Get,
     Store,
@@ -39,15 +57,35 @@ async fn main() -> anyhow::Result<()> {
     let opts = Opts::parse();
     tracing::info!(?opts);
 
+    let app_id = match opts.app_id {
+        AppId {
+            literal: Some(literal),
+            file: None,
+        } => literal,
+        AppId {
+            literal: None,
+            file: Some(file),
+        } => String::from_utf8(fs::read(file).await?)?.parse()?,
+        _ => unreachable!(),
+    };
+    let private_key = match opts.private_key {
+        PrivateKey {
+            literal: Some(literal),
+            file: None,
+        } => literal.into_bytes(),
+        PrivateKey {
+            literal: None,
+            file: Some(file),
+        } => fs::read(file).await?,
+        _ => unreachable!(),
+    };
+
     let octocrab = if let Some(endpoint) = &opts.endpoint {
         Octocrab::builder().base_uri(endpoint)?
     } else {
         Octocrab::builder()
     }
-    .app(
-        opts.app_id.into(),
-        EncodingKey::from_rsa_pem(&fs::read(&opts.private_key).await?)?,
-    )
+    .app(app_id.into(), EncodingKey::from_rsa_pem(&private_key)?)
     .build()?;
 
     if let Operation::Get = opts.operation {
