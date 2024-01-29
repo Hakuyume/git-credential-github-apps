@@ -10,7 +10,7 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 http = "0.2"
 jsonwebtoken = "9"
-octocrab = "0.32"
+octocrab = "0.33"
 secrecy = "0.8"
 tokio = { version = "1", features = ["fs", "io-std", "io-util", "macros", "rt-multi-thread"] }
 tracing = "0.1"
