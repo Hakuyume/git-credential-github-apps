@@ -10,12 +10,12 @@ jobs:
   cargo-fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: cargo fmt -- --check
   cargo-clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       # https://github.com/actions/cache/blob/master/examples.md#rust---cargo
       - uses: actions/cache@v3
         with:
@@ -28,9 +28,13 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo clippy -- --deny warnings
   cargo-build:
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       # https://github.com/actions/cache/blob/master/examples.md#rust---cargo
       - uses: actions/cache@v3
         with:
@@ -43,22 +47,26 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: |
           sudo apt-get install --no-install-recommends --yes musl-tools
-          rustup target add x86_64-unknown-linux-musl
-          cargo build --release --target x86_64-unknown-linux-musl
-      - uses: actions/upload-artifact@v3
+          rustup target add ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
         with:
-          name: x86-64-linux
-          path: target/x86_64-unknown-linux-musl/release/git-credential-github-apps
+          name: ${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/git-credential-github-apps
   docker-build:
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
     needs:
       - cargo-build
     runs-on: ubuntu-latest
     permissions:
       packages: write
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: x86-64-linux
+          name: ${{ matrix.target }}
       - run: |
           chmod +x git-credential-github-apps
 
@@ -67,14 +75,45 @@ jobs:
           RUN apk add --no-cache ca-certificates git git-lfs
           COPY git-credential-github-apps /usr/local/bin/
           EOD
-      - uses: docker/login-action@v2
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v4
+      - uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ github.ref == 'refs/heads/main' }}
           # https://github.com/orgs/community/discussions/25768
-          tags: ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}
+          tags: |
+              ghcr.io/hakuyume/git-credential-github-apps
+              ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}
+  oras-push:
+    # if: ${{ github.ref == 'refs/heads/main' }}
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+    needs:
+      - cargo-build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+         case ${{ matrix.target }} in
+              x86_64-unknown-linux-musl) TAG=x86-64-linux ;;
+         esac
+         for TAG in ${TAG} ${{ github.sha }}-${TAG}
+         do
+             # https://github.com/orgs/community/discussions/25768
+             oras push ghcr.io/hakuyume/git-credential-github-apps:${TAG} git-credential-github-apps
+         done
