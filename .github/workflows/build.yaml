@@ -89,6 +89,7 @@ jobs:
               ghcr.io/hakuyume/git-credential-github-apps
               ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}
   oras-push:
+    if: ${{ github.ref == 'refs/heads/main' }}
     strategy:
       matrix:
         target:
