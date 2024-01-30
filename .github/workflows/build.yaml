@@ -157,7 +157,6 @@ jobs:
           image: ${{ env.REPOSITORY }}:${{ github.sha }}-oras
           app-id: 810689
           private-key: ${{ secrets.PRIVATE_KEY }}
-      - uses: actions/checkout@v4
-        with:
-          repository: Hakuyume/sandbox-private
-          path: sandbox
+      - run: |
+          git clone https://github.com/Hakuyume/sandbox-private.git sandbox-http
+          git clone git@github.com:Hakuyume/sandbox-private.git sandbox-ssh
