@@ -141,3 +141,22 @@ jobs:
           python oci-index.py \
                  manifests/linux-amd64-oras.json:linux/amd64 |
               oras manifest push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-oras,oras -
+  action:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs:
+      - oci-index
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          app-id: 810689
+          private-key: ${{ sercets.PRIVATE_KEY }}
+      - uses: actions/checkout@v4
+        with:
+          repository: https://github.com/Hakuyume/sandbox-private.git
+          path: sandbox-http
+      - uses: actions/checkout@v4
+        with:
+          repository: git@github.com:Hakuyume/sandbox-private.git
+          path: sandbox-git
