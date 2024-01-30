@@ -57,7 +57,7 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: target/git-credential-github-apps
-  docker-build:
+  docker:
     strategy:
       matrix:
         target:
@@ -91,7 +91,7 @@ jobs:
           push: ${{ github.ref == 'refs/heads/main' }}
           # https://github.com/orgs/community/discussions/25768
           tags: ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-${{ matrix.target }}-docker
-  oras-push:
+  oras:
     if: ${{ github.ref == 'refs/heads/main' }}
     strategy:
       matrix:
@@ -113,3 +113,22 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       # https://github.com/orgs/community/discussions/25768
       - run: oras push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-${{ matrix.target }}-oras git-credential-github-apps
+  oci-index:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs:
+      - docker
+      - oras
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # https://github.com/orgs/community/discussions/25768
+      - run: |
+          python oci-index.py ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }} |
+              oras manifest push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }},latest -
