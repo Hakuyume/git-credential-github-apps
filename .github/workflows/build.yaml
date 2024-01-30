@@ -136,7 +136,7 @@ jobs:
               oras manifest fetch ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-${TAG} > manifests/${TAG}.json
           done
           python oci-index.py \
-                 manifests/linux-amd64-*.json:linux/amd64 |
+                 manifests/linux-amd64-{docker,oras}.json:linux/amd64 |
               oras manifest push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }},latest -
           python oci-index.py \
                  manifests/linux-amd64-oras.json:linux/amd64 |
