@@ -154,9 +154,5 @@ jobs:
           private-key: ${{ secrets.PRIVATE_KEY }}
       - uses: actions/checkout@v4
         with:
-          repository: https://github.com/Hakuyume/sandbox-private.git
-          path: sandbox-http
-      - uses: actions/checkout@v4
-        with:
-          repository: git@github.com:Hakuyume/sandbox-private.git
-          path: sandbox-git
+          repository: Hakuyume/sandbox-private
+          path: sandbox
