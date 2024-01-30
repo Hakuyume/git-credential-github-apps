@@ -1,11 +1,6 @@
 import argparse
 import hashlib
 import json
-import subprocess
-
-
-def fetch_json(image: str) -> str:
-    return subprocess.check_output(("oras", "manifest", "fetch", image), text=True)
 
 
 def main() -> None:
