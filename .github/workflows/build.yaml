@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: ["main"]
 
+env:
+  # https://github.com/orgs/community/discussions/25768
+  REPOSITORY: ghcr.io/hakuyume/git-credential-github-apps
+
 jobs:
   cargo-fmt:
     runs-on: ubuntu-latest
@@ -88,11 +92,9 @@ jobs:
       - uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' }}
-          # https://github.com/orgs/community/discussions/25768
-          tags: ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-${{ matrix.target }}-docker
+          push: true
+          tags: ${{ env.REPOSITORY }}:${{ github.sha }}-${{ matrix.target }}-docker
   oras:
-    if: ${{ github.ref == 'refs/heads/main' }}
     strategy:
       matrix:
         target:
@@ -111,10 +113,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # https://github.com/orgs/community/discussions/25768
-      - run: oras push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-${{ matrix.target }}-oras git-credential-github-apps
+      - run: oras push ${{ env.REPOSITORY }}:${{ github.sha }}-${{ matrix.target }}-oras git-credential-github-apps
   oci-index:
-    if: ${{ github.ref == 'refs/heads/main' }}
     needs:
       - docker
       - oras
@@ -128,21 +128,25 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # https://github.com/orgs/community/discussions/25768
       - run: |
           mkdir manifests
           for TAG in linux-amd64-{docker,oras}
           do
-              oras manifest fetch ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-${TAG} > manifests/${TAG}.json
+              oras manifest fetch ${{ env.REPOSITORY }}:${{ github.sha }}-${TAG} > manifests/${TAG}.json
           done
           python oci-index.py \
                  manifests/linux-amd64-{docker,oras}.json:linux/amd64 |
-              oras manifest push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }},latest -
+              oras manifest push ${{ env.REPOSITORY }}:${{ github.sha }} -
           python oci-index.py \
                  manifests/linux-amd64-oras.json:linux/amd64 |
-              oras manifest push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-oras,oras -
+              oras manifest push ${{ env.REPOSITORY }}:${{ github.sha }}-oras -
+      - if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          oras manifest fetch ${{ env.REPOSITORY }}:${{ github.sha }} |
+              oras manifest push ${{ env.REPOSITORY }}:latest -
+          oras manifest fetch ${{ env.REPOSITORY }}:${{ github.sha }}-oras |
+              oras manifest push ${{ env.REPOSITORY }}:oras -
   action:
-    if: ${{ github.ref == 'refs/heads/main' }}
     needs:
       - oci-index
     runs-on: ubuntu-latest
@@ -150,6 +154,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./
         with:
+          image: ${{ env.REPOSITORY }}:${{ github.sha }}-oras
           app-id: 810689
           private-key: ${{ secrets.PRIVATE_KEY }}
       - uses: actions/checkout@v4
