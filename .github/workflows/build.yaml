@@ -152,6 +152,7 @@ jobs:
         with:
           app-id: 810689
           private-key: ${{ secrets.PRIVATE_KEY }}
-      - runs: |
-          git clone https://github.com/Hakuyume/sandbox-private.git sandbox-http
-          git clone git@github.com:Hakuyume/sandbox-private.git sandbox-ssh
+      - uses: actions/checkout@v4
+        with:
+          repository: Hakuyume/sandbox-private
+          path: sandbox
