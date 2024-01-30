@@ -130,5 +130,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       # https://github.com/orgs/community/discussions/25768
       - run: |
-          python oci-index.py ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }} |
+          mkdir manifests
+          for TAG in linux-amd64-{docker,oras}
+          do
+              oras manifest fetch ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-${TAG} > manifests/${TAG}.json
+          done
+          python oci-index.py \
+                 manifests/linux-amd64-*.json:linux/amd64 |
               oras manifest push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }},latest -
+          python oci-index.py \
+                 manifests/linux-amd64-oras.json:linux/amd64 |
+              oras manifest push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-oras,oras -

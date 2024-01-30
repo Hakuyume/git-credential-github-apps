@@ -1,6 +1,5 @@
 import argparse
 import hashlib
-import itertools
 import json
 import subprocess
 
@@ -11,41 +10,40 @@ def fetch_json(image: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("base")
+    parser.add_argument("manifest", nargs="+")
     args = parser.parse_args()
 
     manifests = []
-    for os, arch, kind in itertools.product(
-        ("linux",),
-        ("amd64",),
-        ("docker", "oras"),
-    ):
-        manifest_json = fetch_json(f"{args.base}-{os}-{arch}-{kind}")
+    for path in args.manifest:
+        path, platform, *_ = (*path.rsplit(":", maxsplit=1), None)
+
+        with open(path) as f:
+            manifest_json = f.read()
         manifest = json.loads(manifest_json)
+
         if manifest["mediaType"] == "application/vnd.oci.image.index.v1+json":
             manifests.extend(manifest["manifests"])
         else:
-            manifests.append(
-                {
-                    "mediaType": manifest["mediaType"],
-                    "artifactType": manifest.get("artifactType"),
-                    "digest": (
-                        "sha256:" + hashlib.sha256(manifest_json.encode()).hexdigest()
-                    ),
-                    "size": len(manifest_json),
-                    "platform": {
-                        "architecture": arch,
-                        "os": os,
-                    },
-                },
-            )
+            entry = {
+                "mediaType": manifest["mediaType"],
+                "digest": (
+                    "sha256:" + hashlib.sha256(manifest_json.encode()).hexdigest()
+                ),
+                "size": len(manifest_json),
+            }
+            if artifact_type := manifest.get("artifactType"):
+                entry["artifactType"] = artifact_type
+            if platform:
+                os, architecture = platform.split("/", maxsplit=1)
+                entry["platform"] = {"os": os, "architecture": architecture}
+            manifests.append(entry)
 
     manifest = {
         "schemaVersion": 2,
         "mediaType": "application/vnd.oci.image.index.v1+json",
         "manifests": manifests,
     }
-    print(json.dumps(manifest))
+    print(json.dumps(manifest, sort_keys=True))
 
 
 if __name__ == "__main__":
