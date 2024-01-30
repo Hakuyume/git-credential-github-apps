@@ -31,7 +31,7 @@ jobs:
     strategy:
       matrix:
         target:
-          - x86_64-unknown-linux-musl
+          - linux-amd64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,18 +46,22 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: |
+          case ${{ matrix.target }} in
+              linux-amd64) TARGET=x86_64-unknown-linux-musl ;;
+          esac
           sudo apt-get install --no-install-recommends --yes musl-tools
-          rustup target add ${{ matrix.target }}
-          cargo build --release --target ${{ matrix.target }}
+          rustup target add ${TARGET}
+          cargo build --release --target ${TARGET}
+          install target/${TARGET}/release/git-credential-github-apps target/
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/git-credential-github-apps
+          path: target/git-credential-github-apps
   docker-build:
     strategy:
       matrix:
         target:
-          - x86_64-unknown-linux-musl
+          - linux-amd64
     needs:
       - cargo-build
     runs-on: ubuntu-latest
@@ -80,20 +84,19 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ github.ref == 'refs/heads/main' }}
           # https://github.com/orgs/community/discussions/25768
-          tags: |
-              ghcr.io/hakuyume/git-credential-github-apps
-              ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}
+          tags: ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-${{ matrix.target }}-docker
   oras-push:
     if: ${{ github.ref == 'refs/heads/main' }}
     strategy:
       matrix:
         target:
-          - x86_64-unknown-linux-musl
+          - linux-amd64
     needs:
       - cargo-build
     runs-on: ubuntu-latest
@@ -108,12 +111,5 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: |
-         case ${{ matrix.target }} in
-              x86_64-unknown-linux-musl) TAG=x86-64-linux ;;
-         esac
-         for TAG in ${TAG} ${{ github.sha }}-${TAG}
-         do
-             # https://github.com/orgs/community/discussions/25768
-             oras push ghcr.io/hakuyume/git-credential-github-apps:${TAG} git-credential-github-apps
-         done
+      # https://github.com/orgs/community/discussions/25768
+      - run: oras push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-${{ matrix.target }}-oras git-credential-github-apps
