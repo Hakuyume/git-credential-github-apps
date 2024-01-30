@@ -26,6 +26,6 @@ runs:
         printenv PRIVATE_KEY > ${TEMP}/private-key
         git config --global --add credential.https://github.com.helper \
             "${TEMP}/git-credential-github-apps --app-id-from-literal=${{ inputs.app-id }} --private-key-from-file=${TEMP}/private-key"
-        git config --global --replace-all credential.https://github.com.useHttpPath true
+        git config --global --replace-all credential.https://github.com/.useHttpPath true
 
-        git config --global --add url.https://github.com.insteadOf git@github.com:
+        git config --global --add url.https://github.com/.insteadOf git@github.com:
