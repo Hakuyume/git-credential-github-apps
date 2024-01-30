@@ -151,7 +151,7 @@ jobs:
       - uses: ./
         with:
           app-id: 810689
-          private-key: ${{ sercets.PRIVATE_KEY }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
       - uses: actions/checkout@v4
         with:
           repository: https://github.com/Hakuyume/sandbox-private.git
