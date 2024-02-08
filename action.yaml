@@ -29,3 +29,5 @@ runs:
         git config --global --replace-all credential.https://github.com/.useHttpPath true
 
         git config --global --add url.https://github.com/.insteadOf git@github.com:
+
+        git config --list
