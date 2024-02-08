@@ -18,7 +18,7 @@ runs:
       env:
         PRIVATE_KEY: ${{ inputs.private-key }}
       run: |
-        TEMP=$(mktemp -d)
+        TEMP=$(mktemp -d -p ${{ runner.temp }})
 
         oras pull --platform=linux/amd64 --output=${TEMP} ${{ inputs.image }}
         chmod +x ${TEMP}/git-credential-github-apps
