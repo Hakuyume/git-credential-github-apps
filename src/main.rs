@@ -105,7 +105,12 @@ async fn main() -> anyhow::Result<()> {
             .ok_or_else(|| anyhow::format_err!("missing path"))?
             .split_once('/')
             .ok_or_else(|| anyhow::format_err!("invalid path"))?;
-        let repo = repo.trim_end_matches(".git");
+        let repo = if let Some((repo, _)) = repo.split_once('/') {
+            repo
+        } else {
+            repo
+        }
+        .trim_end_matches(".git");
         tracing::info!(owner, repo);
 
         let installation = octocrab
