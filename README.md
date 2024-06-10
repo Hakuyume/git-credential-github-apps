@@ -10,11 +10,3 @@ a custom git credential helper using GitHub Apps
 [url "https://github.com/"]
 	insteadOf = git@github.com:
 ```
-
-```yaml
-- uses: Hakuyume/git-credential-github-apps@main
-  with:
-    app-id: <APP ID>
-    private-key: <PRIVATE KEY>
-- run: git ...
-```

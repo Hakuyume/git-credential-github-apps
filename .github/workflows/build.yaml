@@ -146,17 +146,3 @@ jobs:
               oras manifest push ${{ env.REPOSITORY }}:latest -
           oras manifest fetch ${{ env.REPOSITORY }}:${{ github.sha }}-oras |
               oras manifest push ${{ env.REPOSITORY }}:oras -
-  action:
-    needs:
-      - oci-index
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./
-        with:
-          image: ${{ env.REPOSITORY }}:${{ github.sha }}-oras
-          app-id: 810689
-          private-key: ${{ secrets.PRIVATE_KEY }}
-      - run: |
-          git clone https://github.com/Hakuyume/sandbox-private.git sandbox-http
-          git clone git@github.com:Hakuyume/sandbox-private.git sandbox-ssh
