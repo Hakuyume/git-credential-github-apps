@@ -103,6 +103,7 @@ async fn main() -> anyhow::Result<()> {
         let (owner, repo) = inputs
             .get("path")
             .ok_or_else(|| anyhow::format_err!("missing path"))?
+            .trim_start_matches('/')
             .split_once('/')
             .ok_or_else(|| anyhow::format_err!("invalid path"))?;
         let repo = if let Some((repo, _)) = repo.split_once('/') {
