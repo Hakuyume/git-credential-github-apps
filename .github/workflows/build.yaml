@@ -30,8 +30,9 @@ jobs:
   cargo-build:
     strategy:
       matrix:
-        target:
+        platform:
           - linux-amd64
+          - linux-arm64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,58 +46,116 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: |
+      - if: matrix.platform == 'linux-amd64'
+        run: |
           sudo apt-get install --no-install-recommends --yes musl-tools
-          rustup target add x86_64-unknown-linux-musl
-          cargo build --release --target=x86_64-unknown-linux-musl
-          upx target/x86_64-unknown-linux-musl/release/git-credential-github-apps
+          echo CARGO_BUILD_TARGET=x86_64-unknown-linux-musl >> ${GITHUB_ENV}
+      - if: matrix.platform == 'linux-arm64'
+        run: |
+          sudo apt-get install --no-install-recommends --yes gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+          echo CARGO_BUILD_TARGET=aarch64-unknown-linux-musl >> ${GITHUB_ENV}
+          echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc >> ${GITHUB_ENV}
+      - run: |
+          rustup target add ${{ env.CARGO_BUILD_TARGET }}
+          cargo build --release
+          upx target/${{ env.CARGO_BUILD_TARGET }}/release/git-credential-github-apps
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}
-          path: target/x86_64-unknown-linux-musl/release/git-credential-github-apps
+          name: ${{ matrix.platform }}
+          path: target/${{ env.CARGO_BUILD_TARGET }}/release/git-credential-github-apps
   docker:
-    if: github.ref == 'refs/heads/main'
     needs: cargo-build
     runs-on: ubuntu-latest
     permissions:
       packages: write
     steps:
       - uses: actions/download-artifact@v4
-        with:
-          name: linux-amd64
       - run: |
           cat << 'EOD' > Dockerfile
           FROM alpine
           RUN apk add --no-cache ca-certificates git git-lfs
-          COPY --chmod=755 git-credential-github-apps /usr/local/bin/
+          ARG TARGETOS
+          ARG TARGETARCH
+          COPY --chmod=755 ${TARGETOS}-${TARGETARCH}/git-credential-github-apps /usr/local/bin/
           EOD
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          platforms: |
+            linux/amd64
+            linux/arm64
+          push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
             ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}
             ghcr.io/hakuyume/git-credential-github-apps
   oras:
-    if: github.ref == 'refs/heads/main'
     needs: cargo-build
     runs-on: ubuntu-latest
     permissions:
       packages: write
     steps:
       - uses: actions/download-artifact@v4
-        with:
-          name: linux-amd64
-      - uses: docker/login-action@v3
+      - if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - if: github.ref == 'refs/heads/main'
+        run: echo REPOSITORY=ghcr.io/hakuyume/git-credential-github-apps >> ${GITHUB_ENV}
+      - if: github.ref != 'refs/heads/main'
+        run: |
+          docker run --detach --publish=5000:5000 ghcr.io/distribution/distribution:edge
+          echo REPOSITORY=localhost:5000/temp >> ${GITHUB_ENV}
       - run: |
-          oras push ghcr.io/hakuyume/git-credential-github-apps:${{ github.sha }}-oras git-credential-github-apps
-          oras push ghcr.io/hakuyume/git-credential-github-apps:oras git-credential-github-apps
+          for PLATFORM in linux-amd64 linux-arm64
+          do
+              (cd ${PLATFORM} && oras push --export-manifest=manifest.json ${{ env.REPOSITORY }} git-credential-github-apps)
+          done
+          jq --compact-output << EOD | tee manifest.json
+          {
+            "schemaVersion": 2,
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "manifests": [
+              {
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                "artifactType": "application/vnd.unknown.artifact.v1",
+                "digest": "sha256:$(sha256sum linux-amd64/manifest.json | head --bytes=64)",
+                "size": $(cat linux-amd64/manifest.json | wc --bytes),
+                "platform": {"os": "linux", "architecture": "amd64"}
+              },
+              {
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                "artifactType": "application/vnd.unknown.artifact.v1",
+                "digest": "sha256:$(sha256sum linux-arm64/manifest.json | head --bytes=64)",
+                "size": $(cat linux-arm64/manifest.json | wc --bytes),
+                "platform": {"os": "linux", "architecture": "arm64"}
+              }
+            ]
+          }
+          EOD
+          oras manifest push ${{ env.REPOSITORY }}:${{ github.sha }}-oras,oras manifest.json
+  test:
+    needs: cargo-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-amd64
+      - run: |
+          chmod +x git-credential-github-apps
+          printenv PRIVATE_KEY > private-key
+          realpath git-credential-github-apps
+          git config --global credential.https://github.com/.helper \
+              "$(pwd)/git-credential-github-apps --app-id-from-literal=810689 --private-key-from-file=$(pwd)/private-key"
+          git config --global credential.https://github.com/.useHttpPath true
+          git config --list
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      - run: git clone https://github.com/Hakuyume/sandbox-private.git
