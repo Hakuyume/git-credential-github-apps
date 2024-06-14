@@ -50,9 +50,14 @@ enum Operation {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    if let Ok(layer) = tracing_journald::layer() {
-        tracing_subscriber::registry().with(layer).init();
-    }
+    tracing_subscriber::Registry::default()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(std::io::stderr)
+                .with_ansi(false),
+        )
+        .with(tracing_subscriber::filter::EnvFilter::from_default_env())
+        .try_init()?;
 
     let opts = Opts::parse();
     tracing::info!(?opts);
