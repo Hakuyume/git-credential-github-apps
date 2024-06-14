@@ -141,3 +141,21 @@ jobs:
           }
           EOD
           oras manifest push ${{ env.REPOSITORY }}:${{ github.sha }}-oras,oras manifest.json
+  test:
+    needs: cargo-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-amd64
+      - run: |
+          chmod +x git-credential-github-apps
+          printenv PRIVATE_KEY > private-key
+          realpath git-credential-github-apps
+          git config --global credential.https://github.com/.helper \
+              "$(pwd)/git-credential-github-apps --app-id-from-literal=810689 --private-key-from-file=$(pwd)/private-key"
+          git config --global credential.https://github.com/.useHttpPath true
+          git config --list
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      - run: git clone https://github.com/Hakuyume/sandbox-private.git
