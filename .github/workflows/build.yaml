@@ -26,7 +26,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: cargo clippy -- --deny=warnings
+      - run: cargo clippy --locked -- --deny=warnings
   cargo-build:
     strategy:
       matrix:
@@ -57,7 +57,7 @@ jobs:
           echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc >> ${GITHUB_ENV}
       - run: |
           rustup target add ${{ env.CARGO_BUILD_TARGET }}
-          cargo build --release
+          cargo build --locked --release
           upx target/${{ env.CARGO_BUILD_TARGET }}/release/git-credential-github-apps
       - uses: actions/upload-artifact@v4
         with:
@@ -100,6 +100,7 @@ jobs:
     permissions:
       packages: write
     steps:
+      - uses: oras-project/setup-oras@v1
       - uses: actions/download-artifact@v4
       - if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
@@ -142,12 +143,19 @@ jobs:
           EOD
           oras manifest push ${{ env.REPOSITORY }}:${{ github.sha }}-oras,oras manifest.json
   test:
+    strategy:
+      matrix:
+        include:
+          - platform: linux-amd64
+            runs-on: ubuntu-latest
+          - platform: linux-arm64
+            runs-on: ubuntu-24.04-arm
     needs: cargo-build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: linux-amd64
+          name: ${{ matrix.platform }}
       - run: |
           chmod +x git-credential-github-apps
           printenv PRIVATE_KEY > private-key
