@@ -26,7 +26,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: cargo clippy -- --deny=warnings
+      - run: cargo clippy --locked -- --deny=warnings
   cargo-build:
     strategy:
       matrix:
@@ -57,7 +57,7 @@ jobs:
           echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-gnu-gcc >> ${GITHUB_ENV}
       - run: |
           rustup target add ${{ env.CARGO_BUILD_TARGET }}
-          cargo build --release
+          cargo build --locked --release
           upx target/${{ env.CARGO_BUILD_TARGET }}/release/git-credential-github-apps
       - uses: actions/upload-artifact@v4
         with:
