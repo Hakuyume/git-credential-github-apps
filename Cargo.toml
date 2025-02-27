@@ -1,17 +1,17 @@
 [package]
 name = "git-credential-github-apps"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1"
-clap = { version = "4", features = ["derive"] }
-http = "1"
-jsonwebtoken = "9"
-octocrab = "0.38"
-secrecy = "0.8"
-tokio = { version = "1", features = ["fs", "io-std", "io-util", "macros", "rt-multi-thread"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1.0.96"
+clap = { version = "4.5.31", features = ["derive"] }
+http = "1.2.0"
+jsonwebtoken = "9.3.1"
+octocrab = "0.43.0"
+secrecy = "0.10.3"
+tokio = { version = "1.43.0", features = ["fs", "io-std", "io-util", "macros", "rt-multi-thread"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
