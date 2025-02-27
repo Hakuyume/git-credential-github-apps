@@ -143,12 +143,19 @@ jobs:
           EOD
           oras manifest push ${{ env.REPOSITORY }}:${{ github.sha }}-oras,oras manifest.json
   test:
+    strategy:
+      matrix:
+        include:
+          - platform: linux-amd64
+            runs-on: ubuntu-latest
+          - platform: linux-arm64
+            runs-on: ubuntu-24.04-arm
     needs: cargo-build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: linux-amd64
+          name: ${{ matrix.platform }}
       - run: |
           chmod +x git-credential-github-apps
           printenv PRIVATE_KEY > private-key
