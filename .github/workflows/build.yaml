@@ -145,13 +145,11 @@ jobs:
   test:
     strategy:
       matrix:
-        include:
-          - platform: linux-amd64
-            runs-on: ubuntu-latest
-          - platform: linux-arm64
-            runs-on: ubuntu-24.04-arm
+        platform:
+          - linux-amd64
+          - linux-arm64
     needs: cargo-build
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: ${{ (matrix.platform == 'linux-amd64' && 'ubuntu-24.04') || (matrix.platform == 'linux-arm64' && 'ubuntu-24.04-arm') }}
     steps:
       - uses: actions/download-artifact@v4
         with:
